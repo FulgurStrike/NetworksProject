@@ -9,7 +9,5 @@ public class TextDuplex {
 
         receiver.start();
         sender.start();
-
-        
     }
 }

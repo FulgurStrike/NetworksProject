@@ -24,7 +24,6 @@ public class Receiver implements Runnable {
             System.exit(0);
         }
 
-        int count = 1;
         for (int i = 0; i < 999; i++) {
             try {
                 byte[] buffer = new byte[200];
@@ -36,10 +35,6 @@ public class Receiver implements Runnable {
                     receivingSocket.receive(packet);
                     String str = new String(buffer);
                     System.out.println(str);
-                    count++;
-                    if (count == 999) {
-
-                    }
                 } catch (SocketTimeoutException e) {
                     System.out.println(".");
                 } catch (IOException e) {
@@ -51,7 +46,6 @@ public class Receiver implements Runnable {
 
             }
         }
-
         receivingSocket.close();
     }
 }
