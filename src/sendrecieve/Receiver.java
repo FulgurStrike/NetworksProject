@@ -2,12 +2,18 @@ package sendrecieve;
 
 import java.net.*;
 import java.io.*;
+import CMPC3M06.AudioPlayer;
+import java.util.Iterator;
 
 
 public class Receiver implements Runnable {
 
     static DatagramSocket receivingSocket;
+    private AudioPlayer player;
 
+    public void audioPlayer() throws Exception{
+       player = new AudioPlayer();
+    }
     public void start() {
         Thread thread = new Thread(this);
         thread.start();
@@ -24,28 +30,48 @@ public class Receiver implements Runnable {
             System.exit(0);
         }
 
-        for (int i = 0; i < 999; i++) {
-            try {
-                byte[] buffer = new byte[200];
-                DatagramPacket packet = new DatagramPacket(buffer, 0, 80);
+        boolean running = true;
 
-                receivingSocket.setSoTimeout(30);
+        while(running){
+            try{
+                byte[] buffer = new byte[512];
+                DatagramPacket packet = new DatagramPacket(buffer, 0, buffer.length);
 
-                try {
-                    receivingSocket.receive(packet);
-                    String str = new String(buffer);
-                    System.out.println(str);
-                } catch (SocketTimeoutException e) {
-                    System.out.println(".");
-                } catch (IOException e) {
-                    e.printStackTrace();
+                receivingSocket.receive(packet);
+
+                byte[] audioBlock = packet.getData();
+                if (packet.getLength() > 0){
+                    player.playBlock(audioBlock);
+                    System.out.println("received audioblock of size of : " + audioBlock.length + " bytes");
                 }
-            } catch (IOException e) {
-                System.out.println("ERROR Receiver: Some IO error occured");
+            } catch(IOException e){
+                System.out.println("ERROR : Receiver : Some random IO error has occurred");
                 e.printStackTrace();
-
             }
         }
         receivingSocket.close();
+//        for (int i = 0; i < 999; i++) {
+//            try {
+//                byte[] buffer = new byte[200];
+//                DatagramPacket packet = new DatagramPacket(buffer, 0, 80);
+//
+//                receivingSocket.setSoTimeout(30);
+//
+//                try {
+//                    receivingSocket.receive(packet);
+//                    String str = new String(buffer);
+//                    System.out.println(str);
+//                } catch (SocketTimeoutException e) {
+//                    System.out.println(".");
+//                } catch (IOException e) {
+//                    e.printStackTrace();
+//                }
+//            } catch (IOException e) {
+//                System.out.println("ERROR Receiver: Some IO error occured");
+//                e.printStackTrace();
+//
+//            }
+//        }
+//        receivingSocket.close();
     }
 }
