@@ -3,6 +3,8 @@ package sendrecieve;
 import java.net.*;
 import java.io.*;
 import CMPC3M06.AudioPlayer;
+
+import java.nio.ByteBuffer;
 import java.util.Iterator;
 
 
@@ -34,15 +36,25 @@ public class Receiver implements Runnable {
 
         while(running){
             try{
-                byte[] buffer = new byte[512];
+                byte[] buffer = new byte[514];
                 DatagramPacket packet = new DatagramPacket(buffer, 0, buffer.length);
+
 
                 receivingSocket.receive(packet);
 
-                byte[] audioBlock = packet.getData();
+                // Wraps the packet into a ByteBuffer for more functionality
+                ByteBuffer byteBuffer = ByteBuffer.wrap(packet.getData());
+
+                // Gets the first 2 bytes in the byte buffer which will be the sequence number
+                short sequenceNumber = byteBuffer.getShort();
+
+                byte[] audioBlock = new byte[512];
+
+                // Retrieves the rest of packet data starting after the first 2 bytes which is the entire audio block
+                byteBuffer.get(2, audioBlock);
                 if (packet.getLength() > 0){
                     player.playBlock(audioBlock);
-                    System.out.println("received audioblock of size of : " + audioBlock.length + " bytes");
+                    System.out.println("received audioblock " + sequenceNumber + " of size of : " + audioBlock.length + " bytes");
                 }
             } catch(IOException e){
                 System.out.println("ERROR : Receiver : Some random IO error has occurred");
