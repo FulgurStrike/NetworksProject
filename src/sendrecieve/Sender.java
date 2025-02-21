@@ -46,9 +46,15 @@ public class Sender implements Runnable {
         for (int i=0;i<Math.ceil(runTime/0.032);i++){
             try{
                 byte[] audioBlock = recorder.getBlock();
+
+                // Allocates a 514 byte long byte buffer
                 ByteBuffer buffer = ByteBuffer.allocate(514);
                 if(audioBlock != null){
+
+                    // First 2 bytes of the packet will be a short representing the sequence number
                     buffer.putShort((short) i);
+
+                    // Remaining bits will be the audio block
                     buffer.put(audioBlock);
                     DatagramPacket packet = new DatagramPacket(buffer.array(), buffer.capacity(), clientIP,port);
                     sendingSocket.send(packet);
