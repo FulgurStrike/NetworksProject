@@ -45,13 +45,13 @@ public class Receiver implements Runnable {
                 // Wraps the packet into a ByteBuffer for more functionality
                 ByteBuffer byteBuffer = ByteBuffer.wrap(packet.getData());
 
-                // Gets the first 2 bytes in the byte buffer which will be the sequence number
+                // Transfers the first 2 bytes in the byte buffer which will be the sequence number
                 short sequenceNumber = byteBuffer.getShort();
 
                 byte[] audioBlock = new byte[512];
 
-                // Retrieves the rest of packet data starting after the first 2 bytes which is the entire audio block
-                byteBuffer.get(2, audioBlock);
+                // Retrieves the rest of packet bytes which is the entire audio block
+                byteBuffer.get(audioBlock);
                 if (packet.getLength() > 0){
                     player.playBlock(audioBlock);
                     System.out.println("received audioblock " + sequenceNumber + " of size of : " + audioBlock.length + " bytes");
