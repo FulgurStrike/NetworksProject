@@ -2,7 +2,11 @@ package sendrecieve;
 
 import java.io.*;
 import java.net.*;
+import java.nio.ByteBuffer;
+
 import CMPC3M06.AudioRecorder;
+
+import javax.xml.crypto.Data;
 
 public class Sender implements Runnable {
     static DatagramSocket sendingSocket;
@@ -42,10 +46,13 @@ public class Sender implements Runnable {
         for (int i=0;i<Math.ceil(runTime/0.032);i++){
             try{
                 byte[] audioBlock = recorder.getBlock();
+                ByteBuffer buffer = ByteBuffer.allocate(514);
                 if(audioBlock != null){
-                    DatagramPacket packet = new DatagramPacket(audioBlock, audioBlock.length, clientIP,port);
+                    buffer.putShort((short) i);
+                    buffer.put(audioBlock);
+                    DatagramPacket packet = new DatagramPacket(buffer.array(), buffer.capacity(), clientIP,port);
                     sendingSocket.send(packet);
-                    System.out.println("audio packet sent, size :" + audioBlock.length + " bytes");
+                    System.out.println("audio packet sent, size :" + buffer.capacity() + " bytes");
                 }
             } catch(IOException e){
                 System.out.println("Error : TextSender: Some random IO error has occurred");
