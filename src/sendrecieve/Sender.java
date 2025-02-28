@@ -9,8 +9,6 @@ import CMPC3M06.AudioRecorder;
 
 public class Sender implements Runnable {
     static DatagramSocket sendingSocket;
-    static DatagramSocket sendingKeySocket;
-    static DatagramSocket receivingKeySocket;
     private AudioRecorder recorder;
     private final long p = 66371551L;
     private final long g = 6L;
