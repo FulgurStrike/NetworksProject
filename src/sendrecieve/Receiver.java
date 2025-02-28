@@ -1,17 +1,22 @@
 package sendrecieve;
 
+import java.math.BigInteger;
 import java.net.*;
 import java.io.*;
 import CMPC3M06.AudioPlayer;
 
 import java.nio.ByteBuffer;
-import java.util.Iterator;
+import java.util.Random;
 
 
 public class Receiver implements Runnable {
 
     static DatagramSocket receivingSocket;
     private AudioPlayer player;
+    private final long p = 66371551L;
+    private final long g = 6L;
+    private final Random rand = new Random(System.currentTimeMillis());
+    private final long y = rand.nextLong();
 
     public void audioPlayer() throws Exception{
        player = new AudioPlayer();
@@ -19,6 +24,39 @@ public class Receiver implements Runnable {
     public void start() {
         Thread thread = new Thread(this);
         thread.start();
+    }
+
+    // Key exchange method using TCP sockets. Receiver acts as the client
+    public BigInteger keyExchange() {
+        BigInteger K = BigInteger.valueOf(0);
+        try {
+            // Listens for incoming server requests on the specified port
+            ServerSocket serverSocket = new ServerSocket(5000);
+
+            // Accepts and opens a connection with the server
+            Socket socket = serverSocket.accept();
+
+            // OutputStream receives data from Server output stream
+            DataOutputStream output = new DataOutputStream(socket.getOutputStream());
+
+            // Input stream sends data to Server output stream
+            DataInputStream input = new DataInputStream(socket.getInputStream());
+
+            BigInteger R = BigInteger.valueOf(g).modPow(BigInteger.valueOf(y), BigInteger.valueOf(p));
+
+            // Sends the value of R back to the server
+            output.writeLong(R.longValue());
+
+            // Reads the value of X sent from the server
+            BigInteger X = BigInteger.valueOf(input.readLong());
+
+            K = X.modPow(BigInteger.valueOf(y), BigInteger.valueOf(p));
+
+            return K;
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return K;
     }
 
     public void run() {
@@ -32,9 +70,11 @@ public class Receiver implements Runnable {
             System.exit(0);
         }
 
+        BigInteger symKey = keyExchange();
+
         boolean running = true;
 
-        while(running){
+        while (running){
             try{
                 byte[] buffer = new byte[514];
                 DatagramPacket packet = new DatagramPacket(buffer, 0, buffer.length);

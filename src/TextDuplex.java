@@ -8,8 +8,8 @@ public class TextDuplex {
         Receiver receiver = new Receiver();
 
         try{
-            sender.audioRecorder();
             receiver.audioPlayer();
+            sender.audioRecorder();
         }catch(Exception e){
             System.out.println("ERROR : an error initializing has occurred");
             e.printStackTrace();
@@ -17,6 +17,12 @@ public class TextDuplex {
         }
 
         receiver.start();
+
+        try {
+            Thread.sleep(100);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
         sender.start();
     }
 }
