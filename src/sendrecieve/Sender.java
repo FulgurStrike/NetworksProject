@@ -75,11 +75,25 @@ public class Sender implements Runnable {
         return K;
     }
 
+    public byte[] enforceCorrectBlockSize(byte[] block, int size) {
+        byte[] paddedBlock = new byte[size];
+        System.arraycopy(block, 0, paddedBlock, size - block.length, block.length);
+
+        return paddedBlock;
+    }
+
     public byte[] encryption(BigInteger key, byte[] audioBlock) {
         BigInteger audioBlockInt = new BigInteger(audioBlock);
-        BigInteger encryptedBlockInt = audioBlockInt.xor(key);
-        System.out.println("Encrypted Audio size: " + encryptedBlockInt.toByteArray().length);
-        return encryptedBlockInt.toByteArray();
+        BigInteger encryptedBlock = audioBlockInt.xor(key);
+        byte[] encryptedBlockArray = encryptedBlock.toByteArray();
+
+        if (encryptedBlockArray.length < 512) {
+            BigInteger paddedBlock = new BigInteger(enforceCorrectBlockSize(encryptedBlockArray, 512));
+
+            return enforceCorrectBlockSize(paddedBlock.toByteArray(), 512);
+        }
+
+        return encryptedBlock.toByteArray();
     }
 
     public void run() {
@@ -103,8 +117,6 @@ public class Sender implements Runnable {
         }
 
         BigInteger symKey = keyExchange();
-        System.out.println(symKey.toByteArray().length + " bytes for symKey");
-        System.out.println(symKey);
 
         int runTime = 10;
 
@@ -113,7 +125,6 @@ public class Sender implements Runnable {
                 try {
                     byte[] audioBlock = recorder.getBlock();
                     byte[] encryptedBlock = encryption(symKey, audioBlock);
-                    System.out.println(encryptedBlock.length);
 
                     // Allocates a 514 byte long byte buffer
                     ByteBuffer buffer = ByteBuffer.allocate(518);
