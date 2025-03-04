@@ -45,7 +45,6 @@ public class Receiver implements Runnable {
     // Key exchange method using TCP sockets. Receiver acts as the client
     public BigInteger keyExchange() {
         BigInteger K = BigInteger.valueOf(0);
-        System.out.println(p.length());
         try {
             // Listens for incoming server requests on the specified port
             ServerSocket serverSocket = new ServerSocket(5000);
@@ -60,7 +59,6 @@ public class Receiver implements Runnable {
             DataInputStream input = new DataInputStream(socket.getInputStream());
 
             BigInteger P = new BigInteger(p, 16);
-            System.out.println(P.toByteArray().length);
 
             BigInteger R = g.modPow(y, P);
 
@@ -80,11 +78,25 @@ public class Receiver implements Runnable {
         return K;
     }
 
+    public byte[] enforceCorrectBlockSize(byte[] block, int size) {
+        byte[] paddedBlock = new byte[size];
+        System.arraycopy(block, 0, paddedBlock, size - block.length, block.length);
+
+        return paddedBlock;
+    }
+
     public byte[] decryption(BigInteger key, byte[] audioBlock) {
-        BigInteger encryptedAudio = new BigInteger(audioBlock);
-        BigInteger decryptedAudio = encryptedAudio.xor(key);
-        System.out.println("Decrypted audio size " + decryptedAudio.toByteArray().length);
-        return decryptedAudio.toByteArray();
+        BigInteger audioBlockInt = new BigInteger(audioBlock);
+        BigInteger decryptedBlock = audioBlockInt.xor(key);
+        byte[] decryptedBlockArray = decryptedBlock.toByteArray();
+
+        if (decryptedBlockArray.length < 512) {
+            BigInteger paddedBlock = new BigInteger(enforceCorrectBlockSize(decryptedBlockArray, 512));
+
+            return enforceCorrectBlockSize(paddedBlock.toByteArray(), 512);
+        }
+
+        return decryptedBlock.toByteArray();
     }
 
     public void run() {
@@ -98,9 +110,7 @@ public class Receiver implements Runnable {
             System.exit(0);
         }
 
-        BigInteger symKey = keyExchange();
-        System.out.println(symKey.toByteArray().length + " bytes for symKey");
-        System.out.println(symKey);
+        BigInteger symKey = keyExchange();;
 
         boolean running = true;
 
@@ -127,15 +137,11 @@ public class Receiver implements Runnable {
                 byte[] audioBlock = new byte[512];
                 // Retrieves the rest of packet bytes which is the entire audio block
                 byteBuffer.get(audioBlock);
-                System.out.println("Reciever " + audioBlock.length );
 
-
-                ByteBuffer decryptedBlockTmp = ByteBuffer.allocate(512);
-                decryptedBlockTmp.put(decryption(symKey, audioBlock));
-                byte[] decryptedAudioBlock = decryptedBlockTmp.array();
+                byte[] decryptedBlock = decryption(symKey, audioBlock);
 
                 if (packet.getLength() > 0){
-                    player.playBlock(decryptedAudioBlock);
+                    player.playBlock(decryptedBlock);
                     System.out.println("received audioblock " + sequenceNumber + " of size of : " + audioBlock.length + " bytes");
                 }
             } catch(IOException e){
