@@ -5,10 +5,11 @@ import java.math.BigInteger;
 import java.net.*;
 import java.nio.ByteBuffer;
 import java.util.Random;
+import uk.ac.uea.cmp.voip.DatagramSocket2;
 import CMPC3M06.AudioRecorder;
 
 public class Sender implements Runnable {
-    static DatagramSocket sendingSocket;
+    static DatagramSocket2 sendingSocket;
     private AudioRecorder recorder;
     private final String p = "FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD129024E088A67CC74"
             + "020BBEA63B139B22514A08798E3404DDEF9519B3CD3A431B302B0A6DF25F14374"
@@ -44,6 +45,7 @@ public class Sender implements Runnable {
     private final Random rand = new Random(System.currentTimeMillis());
     private final long x = rand.nextLong();
 
+
     public void audioRecorder()throws Exception{
         recorder = new AudioRecorder();
     }
@@ -72,6 +74,21 @@ public class Sender implements Runnable {
 
             BigInteger R = g.modPow(BigInteger.valueOf(x), P);
 
+            BigInteger gcd = P.gcd(R);
+
+            if (gcd.equals(BigInteger.ONE)) {
+                // Proceed with operations requiring the inverse (if needed)
+                try {
+                    BigInteger inverse = R.modInverse(P);
+                    System.out.println("Inverse exists: " + inverse);
+                } catch (ArithmeticException e) {
+                    System.out.println("R is not invertible modulo P.");
+                }
+            } else {
+                System.out.println("P and R are not coprime, so R is not invertible modulo P.");
+            }
+
+
             // Sends the value of R to the client
             output.writeBytes(R.toString());
 
@@ -91,7 +108,7 @@ public class Sender implements Runnable {
 
     public void run() {
         InetAddress clientIP = null;
-        int port = 55555;
+        int port = 226;
         try {
             //temp localhost
             clientIP =InetAddress.getByName("localhost");
@@ -102,7 +119,7 @@ public class Sender implements Runnable {
         }
 
         try {
-            sendingSocket = new DatagramSocket();
+            sendingSocket = new DatagramSocket2();
         } catch (SocketException e) {
             System.out.println("ERROR Sender 1: Could not open UDP packet to send from");
             e.printStackTrace();

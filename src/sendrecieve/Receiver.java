@@ -4,6 +4,7 @@ import java.math.BigInteger;
 import java.net.*;
 import java.io.*;
 import CMPC3M06.AudioPlayer;
+import uk.ac.uea.cmp.voip.DatagramSocket2;
 
 import java.nio.ByteBuffer;
 import java.util.Random;
@@ -11,7 +12,8 @@ import java.util.Random;
 
 public class Receiver implements Runnable {
 
-    static DatagramSocket receivingSocket;
+    static DatagramSocket2 receivingSocket;
+
     private AudioPlayer player;
     private final String p = "FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD129024E088A67CC74"
             + "020BBEA63B139B22514A08798E3404DDEF9519B3CD3A431B302B0A6DF25F14374"
@@ -46,6 +48,10 @@ public class Receiver implements Runnable {
     private final BigInteger g = BigInteger.valueOf(2);
     private final Random rand = new Random(System.currentTimeMillis());
     private final long y = rand.nextLong();
+
+    private short lastReceivedSeqNum = -1;
+    private byte[] lastReceivedAudioBlock;
+
 
     public void audioPlayer() throws Exception{
        player = new AudioPlayer();
@@ -91,10 +97,10 @@ public class Receiver implements Runnable {
     }
 
     public void run() {
-        int port = 55555;
+        int port = 226;
 
         try {
-            receivingSocket = new DatagramSocket(port);
+            receivingSocket = new DatagramSocket2(port);
         } catch (SocketException e) {
             System.out.println("ERROR Receiver: Could not open UDP packet to send from");
             e.printStackTrace();
@@ -124,16 +130,30 @@ public class Receiver implements Runnable {
 
                 // Retrieves the rest of packet bytes which is the entire audio block
                 byteBuffer.get(audioBlock);
-                if (packet.getLength() > 0){
+                if(sequenceNumber != lastReceivedSeqNum +1 && lastReceivedAudioBlock != null)
+                {
+                    System.out.println("packet loss occur. Repetition compensation of packet "+ lastReceivedSeqNum);
+                    player.playBlock(lastReceivedAudioBlock);
+                }else{
                     player.playBlock(audioBlock);
+                    lastReceivedAudioBlock = audioBlock;
                     System.out.println("received audioblock " + sequenceNumber + " of size of : " + audioBlock.length + " bytes");
                 }
+                lastReceivedSeqNum = sequenceNumber;
+//
+//                if (packet.getLength() > 0){
+//                        player.playBlock(audioBlock);
+//                        System.out.println("received audioblock " + sequenceNumber + " of size of : " + audioBlock.length + " bytes");
+//                }
             } catch(IOException e){
                 System.out.println("ERROR : Receiver : Some random IO error has occurred");
                 e.printStackTrace();
             }
         }
         receivingSocket.close();
+
+
+
 //        for (int i = 0; i < 999; i++) {
 //            try {
 //                byte[] buffer = new byte[200];
