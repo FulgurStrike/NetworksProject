@@ -45,7 +45,7 @@ public class Receiver implements Runnable {
             + "5DCB7A4187B8AC3B5DCB7A4187B8AC3B5DCB7A4187B8AC3B5DCB7A4187B8AC3B5D";
     private final BigInteger g = BigInteger.valueOf(2);
     private final Random rand = new Random(System.currentTimeMillis());
-    private final long y = rand.nextLong();
+    private final BigInteger y = new BigInteger(2048, rand);
 
     public void audioPlayer() throws Exception{
        player = new AudioPlayer();
@@ -73,15 +73,16 @@ public class Receiver implements Runnable {
 
             BigInteger P = new BigInteger(p, 16);
 
-            BigInteger R = g.modPow(BigInteger.valueOf(y), P);
+            BigInteger R = g.modPow(y, P);
 
             // Sends the value of R back to the server
-            output.writeBytes(R.toString());
+            output.writeUTF(R.toString());
+            output.flush();
 
             // Reads the value of X sent from the server
-            BigInteger X = new BigInteger(String.valueOf(input.read()));
+            BigInteger R2 = new BigInteger(input.readUTF());
 
-            K = X.modPow(BigInteger.valueOf(y), P);
+            K = R2.modPow(y, P).subtract(BigInteger.valueOf(1));
 
             return K;
         } catch (IOException e) {
