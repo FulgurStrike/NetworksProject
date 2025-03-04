@@ -46,6 +46,7 @@ public class Receiver implements Runnable {
     private final BigInteger g = BigInteger.valueOf(2);
     private final Random rand = new Random(System.currentTimeMillis());
     private final BigInteger y = new BigInteger(2048, rand);
+    private final int authHeader = 768452;
 
     public void audioPlayer() throws Exception{
        player = new AudioPlayer();
@@ -109,7 +110,7 @@ public class Receiver implements Runnable {
 
         while (running){
             try{
-                byte[] buffer = new byte[514];
+                byte[] buffer = new byte[518];
                 DatagramPacket packet = new DatagramPacket(buffer, 0, buffer.length);
 
 
@@ -118,6 +119,12 @@ public class Receiver implements Runnable {
                 // Wraps the packet into a ByteBuffer for more functionality
                 ByteBuffer byteBuffer = ByteBuffer.wrap(packet.getData());
 
+                int authHeaderPacket = byteBuffer.getInt();
+
+                if (authHeaderPacket != authHeader){
+                    continue;
+                }
+
                 // Transfers the first 2 bytes in the byte buffer which will be the sequence number
                 short sequenceNumber = byteBuffer.getShort();
 
@@ -125,6 +132,8 @@ public class Receiver implements Runnable {
 
                 // Retrieves the rest of packet bytes which is the entire audio block
                 byteBuffer.get(audioBlock);
+
+
                 if (packet.getLength() > 0){
                     player.playBlock(audioBlock);
                     System.out.println("received audioblock " + sequenceNumber + " of size of : " + audioBlock.length + " bytes");

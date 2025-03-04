@@ -43,6 +43,7 @@ public class Sender implements Runnable {
     private final BigInteger g = BigInteger.valueOf(2);
     private final Random rand = new Random(System.currentTimeMillis());
     private final BigInteger x = new BigInteger(2048, rand);
+    private final int authHeader = 768452;
 
     public void audioRecorder()throws Exception{
         recorder = new AudioRecorder();
@@ -55,7 +56,6 @@ public class Sender implements Runnable {
 
     // Key exchange method using TCP sockets. Sender acts as the server
     public BigInteger keyExchange() {
-        long key = 0;
         BigInteger K = BigInteger.valueOf(0);
         try {
 
@@ -121,8 +121,10 @@ public class Sender implements Runnable {
                     byte[] audioBlock = recorder.getBlock();
 
                     // Allocates a 514 byte long byte buffer
-                    ByteBuffer buffer = ByteBuffer.allocate(514);
+                    ByteBuffer buffer = ByteBuffer.allocate(518);
                     if (audioBlock != null) {
+
+                        buffer.putInt(authHeader);
 
                         // First 2 bytes of the packet will be a short representing the sequence number
                         buffer.putShort((short) i);
