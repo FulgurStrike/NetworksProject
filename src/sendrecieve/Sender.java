@@ -75,6 +75,12 @@ public class Sender implements Runnable {
         return K;
     }
 
+    public byte[] encryption(BigInteger key, byte[] audioBlock) {
+        BigInteger audioBlockInt = new BigInteger(audioBlock);
+        BigInteger encryptedBlockInt = audioBlockInt.xor(key);
+        System.out.println("Encrypted Audio size: " + encryptedBlockInt.toByteArray().length);
+        return encryptedBlockInt.toByteArray();
+    }
 
     public void run() {
         InetAddress clientIP = null;
@@ -97,6 +103,7 @@ public class Sender implements Runnable {
         }
 
         BigInteger symKey = keyExchange();
+        System.out.println(symKey.toByteArray().length + " bytes for symKey");
         System.out.println(symKey);
 
         int runTime = 10;
@@ -105,10 +112,12 @@ public class Sender implements Runnable {
             for (int i = 0; i < Math.ceil(runTime / 0.032); i++) {
                 try {
                     byte[] audioBlock = recorder.getBlock();
+                    byte[] encryptedBlock = encryption(symKey, audioBlock);
+                    System.out.println(encryptedBlock.length);
 
                     // Allocates a 514 byte long byte buffer
                     ByteBuffer buffer = ByteBuffer.allocate(518);
-                    if (audioBlock != null) {
+                    if (encryptedBlock != null) {
 
                         buffer.putInt(authHeader);
 
@@ -116,7 +125,7 @@ public class Sender implements Runnable {
                         buffer.putShort((short) i);
 
                         // Remaining bits will be the audio block
-                        buffer.put(audioBlock);
+                        buffer.put(encryptedBlock);
                         DatagramPacket packet = new DatagramPacket(buffer.array(), buffer.capacity(), clientIP, port);
                         sendingSocket.send(packet);
                         System.out.println("audio packet sent, size :" + buffer.capacity() + " bytes");

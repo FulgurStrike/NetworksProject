@@ -80,6 +80,13 @@ public class Receiver implements Runnable {
         return K;
     }
 
+    public byte[] decryption(BigInteger key, byte[] audioBlock) {
+        BigInteger encryptedAudio = new BigInteger(audioBlock);
+        BigInteger decryptedAudio = encryptedAudio.xor(key);
+        System.out.println("Decrypted audio size " + decryptedAudio.toByteArray().length);
+        return decryptedAudio.toByteArray();
+    }
+
     public void run() {
         int port = 55555;
 
@@ -92,6 +99,7 @@ public class Receiver implements Runnable {
         }
 
         BigInteger symKey = keyExchange();
+        System.out.println(symKey.toByteArray().length + " bytes for symKey");
         System.out.println(symKey);
 
         boolean running = true;
@@ -117,13 +125,17 @@ public class Receiver implements Runnable {
                 short sequenceNumber = byteBuffer.getShort();
 
                 byte[] audioBlock = new byte[512];
-
                 // Retrieves the rest of packet bytes which is the entire audio block
                 byteBuffer.get(audioBlock);
+                System.out.println("Reciever " + audioBlock.length );
 
+
+                ByteBuffer decryptedBlockTmp = ByteBuffer.allocate(512);
+                decryptedBlockTmp.put(decryption(symKey, audioBlock));
+                byte[] decryptedAudioBlock = decryptedBlockTmp.array();
 
                 if (packet.getLength() > 0){
-                    player.playBlock(audioBlock);
+                    player.playBlock(decryptedAudioBlock);
                     System.out.println("received audioblock " + sequenceNumber + " of size of : " + audioBlock.length + " bytes");
                 }
             } catch(IOException e){
