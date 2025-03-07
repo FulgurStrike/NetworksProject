@@ -147,20 +147,5 @@ public class Sender implements Runnable {
                 }
             }
         }
-       // for (int i = 0; i < 999; i++) {
-       //     try {
-       //         String str = "Packet " + i;
-
-       //         byte[] buffer = str.getBytes();
-
-       //         DatagramPacket packet = new DatagramPacket(buffer, buffer.length, clientIP, port);
-
-       //         sendingSocket.send(packet);
-       //     }catch (IOException e) {
-       //         System.out.println("ERROR Sender 2: Some random IO error occured");
-       //         e.printStackTrace();
-       //     }
-       // }
-       // sendingSocket.close();
     }
 }
