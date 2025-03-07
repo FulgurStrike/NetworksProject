@@ -8,8 +8,14 @@ import java.util.Random;
 import CMPC3M06.AudioRecorder;
 
 public class Sender implements Runnable {
+
+
+
+    private static final int MODULUS =1000007;
+    private static final int S_KEY = 11111;
     static DatagramSocket sendingSocket;
     private AudioRecorder recorder;
+
     private final String p = "FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD129024E088A67CC74"
             + "020BBEA63B139B22514A08798E3404DDEF9519B3CD3A431B302B0A6DF25F14374"
             + "FE1356D6D51C245E485B576625E7EC6F44C42E9A63A36210000000000090563E0"
@@ -30,6 +36,17 @@ public class Sender implements Runnable {
     private final Random rand = new Random(System.currentTimeMillis());
     private final BigInteger x = new BigInteger(2048, rand);
     private final int authHeader = 768452;
+
+
+    private static long calcAuthenticator(byte[] audioBlock){
+        int checkSum =0;
+        for(byte b : audioBlock){
+            checkSum +=b ;
+        }
+        checkSum += S_KEY;
+        checkSum %= MODULUS;
+        return Integer.toUnsignedLong(checkSum);
+    }
 
     public void audioRecorder()throws Exception{
         recorder = new AudioRecorder();
@@ -117,7 +134,6 @@ public class Sender implements Runnable {
         }
 
         BigInteger symKey = keyExchange();
-
         int runTime = 10;
 
         while (true) {
@@ -125,18 +141,20 @@ public class Sender implements Runnable {
                 try {
                     byte[] audioBlock = recorder.getBlock();
                     byte[] encryptedBlock = encryption(symKey, audioBlock);
+                    long authentication = calcAuthenticator(audioBlock);
 
                     // Allocates a 514 byte long byte buffer
-                    ByteBuffer buffer = ByteBuffer.allocate(518);
+                    ByteBuffer buffer = ByteBuffer.allocate(526);
                     if (encryptedBlock != null) {
 
                         buffer.putInt(authHeader);
-
                         // First 2 bytes of the packet will be a short representing the sequence number
                         buffer.putShort((short) i);
+                        buffer.putLong(authentication);
 
                         // Remaining bits will be the audio block
                         buffer.put(encryptedBlock);
+
                         DatagramPacket packet = new DatagramPacket(buffer.array(), buffer.capacity(), clientIP, port);
                         sendingSocket.send(packet);
                         System.out.println("audio packet sent, size :" + buffer.capacity() + " bytes");
