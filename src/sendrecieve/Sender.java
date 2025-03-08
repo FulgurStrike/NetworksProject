@@ -141,16 +141,22 @@ public class Sender implements Runnable {
                 try {
                     byte[] audioBlock = recorder.getBlock();
                     byte[] encryptedBlock = encryption(symKey, audioBlock);
-                    long authentication = calcAuthenticator(audioBlock);
+                    BigInteger authentication = BigInteger.valueOf(calcAuthenticator(audioBlock));
+                    byte[] authBytes = authentication.toByteArray();
 
+                   // Ensure that the byte array has a fixed size (e.g., 8 bytes for a long, or larger for BigInteger)
+                    if (authBytes.length < 8) {
+                        byte[] paddedBytes = new byte[8];
+                        System.arraycopy(authBytes, 0, paddedBytes, 8 - authBytes.length, authBytes.length);
+                        authBytes = paddedBytes;
+                    }
                     // Allocates a 514 byte long byte buffer
-                    ByteBuffer buffer = ByteBuffer.allocate(526);
                     if (encryptedBlock != null) {
-
+                        ByteBuffer buffer = ByteBuffer.allocate(526);
                         buffer.putInt(authHeader);
                         // First 2 bytes of the packet will be a short representing the sequence number
                         buffer.putShort((short) i);
-                        buffer.putLong(authentication);
+                        buffer.put(authBytes);
 
                         // Remaining bits will be the audio block
                         buffer.put(encryptedBlock);
