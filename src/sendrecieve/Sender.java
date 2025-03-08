@@ -4,6 +4,7 @@ import java.io.*;
 import java.math.BigInteger;
 import java.net.*;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.util.Random;
 import CMPC3M06.AudioRecorder;
 
@@ -37,16 +38,16 @@ public class Sender implements Runnable {
     private final BigInteger x = new BigInteger(2048, rand);
     private final int authHeader = 768452;
 
-
-    private static long calcAuthenticator(byte[] audioBlock){
-        int checkSum =0;
-        for(byte b : audioBlock){
-            checkSum +=b ;
+    public static long calcAuthenticator(byte[] audioBlock) {
+        int checkSum = 0;
+        for (byte b : audioBlock) {
+            checkSum += b;  // Summing up byte values
         }
-        checkSum += S_KEY;
-        checkSum %= MODULUS;
-        return Integer.toUnsignedLong(checkSum);
+        checkSum += S_KEY;  // Adding the secret key
+        checkSum %= MODULUS;  // Modulo to ensure the checksum fits within the modulus
+        return Integer.toUnsignedLong(checkSum);  // Convert to unsigned long
     }
+
 
     public void audioRecorder()throws Exception{
         recorder = new AudioRecorder();
@@ -152,7 +153,7 @@ public class Sender implements Runnable {
                     }
                     // Allocates a 514 byte long byte buffer
                     if (encryptedBlock != null) {
-                        ByteBuffer buffer = ByteBuffer.allocate(526);
+                        ByteBuffer buffer = ByteBuffer.allocate(526).order(ByteOrder.BIG_ENDIAN);
                         buffer.putInt(authHeader);
                         // First 2 bytes of the packet will be a short representing the sequence number
                         buffer.putShort((short) i);

@@ -38,15 +38,16 @@ public class Receiver implements Runnable {
     private final BigInteger y = new BigInteger(2048, rand);
     private final int authHeader = 768452;
 
-    public static long calcAuthenticator(byte[] audioBlock){
-        int checkSum =0;
-        for(byte b: audioBlock){
-            checkSum +=b;
+    public static long calcAuthenticator(byte[] audioBlock) {
+        int checkSum = 0;
+        for (byte b : audioBlock) {
+            checkSum += b;  // Summing up byte values
         }
-        checkSum +=S_KEY;
-        checkSum %= MODULUS;
-        return Integer.toUnsignedLong(checkSum);
+        checkSum += S_KEY;  // Adding the secret key
+        checkSum %= MODULUS;  // Modulo to ensure the checksum fits within the modulus
+        return Integer.toUnsignedLong(checkSum);  // Convert to unsigned long
     }
+
 
     public void audioPlayer() throws Exception{
        player = new AudioPlayer();
@@ -147,8 +148,6 @@ public class Receiver implements Runnable {
                     receiveAuthenticator = receiveAuthenticator+ (1L << 64); // Convert to positive unsigned equivalent
                 }
 
-                // Now, the 'authentication' value should be non-negative, regardless of the sender's sign.
-                System.out.println("Received authentication: " + receiveAuthenticator);
 
                 byte[] audioBlock = new byte[512];
                 // Retrieves the rest of packet bytes which is the entire audio block
