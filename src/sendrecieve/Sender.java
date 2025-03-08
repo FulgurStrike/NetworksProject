@@ -5,6 +5,7 @@ import java.math.BigInteger;
 import java.net.*;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.Arrays;
 import java.util.Random;
 import CMPC3M06.AudioRecorder;
 
@@ -12,7 +13,7 @@ public class Sender implements Runnable {
 
 
 
-    private static final int MODULUS =1000007;
+    private static final int MODULUS =65536;
     private static final int S_KEY = 11111;
     static DatagramSocket sendingSocket;
     private AudioRecorder recorder;
@@ -41,7 +42,7 @@ public class Sender implements Runnable {
     public static long calcAuthenticator(byte[] audioBlock) {
         int checkSum = 0;
         for (byte b : audioBlock) {
-            checkSum += b;  // Summing up byte values
+            checkSum += Byte.toUnsignedInt(b);  // Summing up byte values
         }
         checkSum += S_KEY;  // Adding the secret key
         checkSum %= MODULUS;  // Modulo to ensure the checksum fits within the modulus

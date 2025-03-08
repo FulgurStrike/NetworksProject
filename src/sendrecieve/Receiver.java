@@ -6,13 +6,14 @@ import java.io.*;
 import CMPC3M06.AudioPlayer;
 
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.Random;
 
 
 public class Receiver implements Runnable {
 
 
-    private static final int MODULUS =1000007;
+    private static final int MODULUS =65536;
     private static final int S_KEY = 11111;
     static DatagramSocket receivingSocket;
     private AudioPlayer player;
@@ -41,7 +42,7 @@ public class Receiver implements Runnable {
     public static long calcAuthenticator(byte[] audioBlock) {
         int checkSum = 0;
         for (byte b : audioBlock) {
-            checkSum += b;  // Summing up byte values
+            checkSum += Byte.toUnsignedInt(b);  // Summing up byte values
         }
         checkSum += S_KEY;  // Adding the secret key
         checkSum %= MODULUS;  // Modulo to ensure the checksum fits within the modulus
