@@ -164,7 +164,6 @@ public class Receiver implements Runnable {
                             receiveAuthenticator = receiveAuthenticator+ (1L << 64); // Convert to positive unsigned equivalent
                         }
 
- splicing_implementation
                 // Wraps the packet into a ByteBuffer for more functionality
                 ByteBuffer byteBuffer = ByteBuffer.wrap(packet.getData());
                 byteBuffer.getInt();
@@ -187,14 +186,12 @@ public class Receiver implements Runnable {
 
                         long expectedAuthenticator = calcAuthenticator(audioBlock);
                         long receivedAuthenticator = receiveAuthenticator & 0xFFFFFFFFFFFFFFFFL; // Make sure it is unsigned
- senderbased
 
 
                         //System.out.println("Received packet with sequence number: " + sequenceNumber);
                         if (receivedAuthenticator == expectedAuthenticator) {
                             System.out.println("valid message, playing audioBlock");
 
- splicing_implementation
                 //System.out.println("Received packet with sequence number: " + sequenceNumber);
                 if (receivedAuthenticator == expectedAuthenticator) {
 
@@ -250,7 +247,6 @@ public class Receiver implements Runnable {
                         }else{
                             //System.out.println("Message has been tampered with or isn't valid. Disregarding the packet "+ sequenceNumber + ":"+receivedAuthenticator + ":"+expectedAuthenticator);
                         }
- senderbased
                     }
                 }
 
