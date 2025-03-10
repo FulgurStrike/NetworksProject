@@ -5,9 +5,11 @@ import java.math.BigInteger;
 import java.net.*;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Random;
 import CMPC3M06.AudioRecorder;
+import senderbased.Interleaver;
 
 public class Sender implements Runnable {
 
@@ -139,39 +141,59 @@ public class Sender implements Runnable {
         int runTime = 10;
 
         while (true) {
-            for (int i = 0; i < Math.ceil(runTime / 0.032); i++) {
-                try {
-                    byte[] audioBlock = recorder.getBlock();
-                    byte[] encryptedBlock = encryption(symKey, audioBlock);
-                    BigInteger authentication = BigInteger.valueOf(calcAuthenticator(encryptedBlock));
-                    byte[] authBytes = authentication.toByteArray();
+            int count = 0;
+            ArrayList<ArrayList<DatagramPacket>> packetMatrix = new ArrayList<>();
+            try {
+                for (int i = 0; i < 3; i++) {
+                    ArrayList<DatagramPacket> packets = new ArrayList<>();
+                    for (int j = 0; j < 3; j++) {
+                        byte[] audioBlock = recorder.getBlock();
+                        byte[] encryptedBlock = encryption(symKey, audioBlock);
+                        BigInteger authentication = BigInteger.valueOf(calcAuthenticator(encryptedBlock));
+                        byte[] authBytes = authentication.toByteArray();
 
-                   // Ensure that the byte array has a fixed size (e.g., 8 bytes for a long, or larger for BigInteger)
-                    if (authBytes.length < 8) {
-                        byte[] paddedBytes = new byte[8];
-                        System.arraycopy(authBytes, 0, paddedBytes, 8 - authBytes.length, authBytes.length);
-                        authBytes = paddedBytes;
+                        // Ensure that the byte array has a fixed size (e.g., 8 bytes for a long, or larger for BigInteger)
+                        if (authBytes.length < 8) {
+                            byte[] paddedBytes = new byte[8];
+                            System.arraycopy(authBytes, 0, paddedBytes, 8 - authBytes.length, authBytes.length);
+                            authBytes = paddedBytes;
+                        }
+                        // Allocates a 514 byte long byte buffer
+                        if (encryptedBlock != null) {
+                            ByteBuffer buffer = ByteBuffer.allocate(526).order(ByteOrder.BIG_ENDIAN);
+                            buffer.putInt(authHeader);
+                            // First 2 bytes of the packet will be a short representing the sequence number
+                            buffer.putShort((short) count);
+                            buffer.put(authBytes);
+
+                            // Remaining bits will be the audio block
+                            buffer.put(encryptedBlock);
+
+                            DatagramPacket packet = new DatagramPacket(buffer.array(), buffer.capacity(), clientIP, port);
+                            packets.add(packet);
+                            count++;
+                        }
                     }
-                    // Allocates a 514 byte long byte buffer
-                    if (encryptedBlock != null) {
-                        ByteBuffer buffer = ByteBuffer.allocate(526).order(ByteOrder.BIG_ENDIAN);
-                        buffer.putInt(authHeader);
-                        // First 2 bytes of the packet will be a short representing the sequence number
-                        buffer.putShort((short) i);
-                        buffer.put(authBytes);
+                    packetMatrix.add(packets);
+                }
 
-                        // Remaining bits will be the audio block
-                        buffer.put(encryptedBlock);
+            } catch (IOException e) {
+                System.out.println("Error : TextSender: Some random IO error has occurred");
+                e.printStackTrace();
+            }
 
-                        DatagramPacket packet = new DatagramPacket(buffer.array(), buffer.capacity(), clientIP, port);
+            packetMatrix = Interleaver.interleave(packetMatrix);
+
+            for (ArrayList<DatagramPacket> packets : packetMatrix) {
+                for (DatagramPacket packet : packets) {
+                    try {
                         sendingSocket.send(packet);
-                        System.out.println("audio packet sent, size :" + buffer.capacity() + " bytes");
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
                     }
-                } catch (IOException e) {
-                    System.out.println("Error : TextSender: Some random IO error has occurred");
-                    e.printStackTrace();
                 }
             }
         }
     }
 }
+
