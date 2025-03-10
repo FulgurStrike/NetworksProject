@@ -9,15 +9,19 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Random;
 import CMPC3M06.AudioRecorder;
+ splicing_implementation
+import uk.ac.uea.cmp.voip.DatagramSocket2;
+
 import senderbased.Interleaver;
 
+ senderbased
 public class Sender implements Runnable {
 
 
 
     private static final int MODULUS =65536;
     private static final int S_KEY = 11111;
-    static DatagramSocket sendingSocket;
+    static DatagramSocket2 sendingSocket;
     private AudioRecorder recorder;
 
     private final String p = "FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD129024E088A67CC74"
@@ -130,7 +134,7 @@ public class Sender implements Runnable {
         }
 
         try {
-            sendingSocket = new DatagramSocket();
+            sendingSocket = new DatagramSocket2();
         } catch (SocketException e) {
             System.out.println("ERROR Sender 1: Could not open UDP packet to send from");
             e.printStackTrace();
@@ -188,8 +192,12 @@ public class Sender implements Runnable {
                 for (DatagramPacket packet : packets) {
                     try {
                         sendingSocket.send(packet);
+ splicing_implementation
+                       // System.out.println("audio packet sent, size :" + buffer.capacity() + " bytes");
+
                     } catch (IOException e) {
                         throw new RuntimeException(e);
+ senderbased
                     }
                 }
             }
