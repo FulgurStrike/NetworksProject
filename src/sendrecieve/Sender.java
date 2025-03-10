@@ -143,7 +143,7 @@ public class Sender implements Runnable {
                 try {
                     byte[] audioBlock = recorder.getBlock();
                     byte[] encryptedBlock = encryption(symKey, audioBlock);
-                    BigInteger authentication = BigInteger.valueOf(calcAuthenticator(audioBlock));
+                    BigInteger authentication = BigInteger.valueOf(calcAuthenticator(encryptedBlock));
                     byte[] authBytes = authentication.toByteArray();
 
                    // Ensure that the byte array has a fixed size (e.g., 8 bytes for a long, or larger for BigInteger)

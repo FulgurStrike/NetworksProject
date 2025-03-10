@@ -159,8 +159,6 @@ public class Receiver implements Runnable {
 
 
                 //System.out.println("Received packet with sequence number: " + sequenceNumber);
-                System.out.println("Received checksum: " + receivedAuthenticator);
-                System.out.println("Expected checksum: " + expectedAuthenticator);
                 if (receivedAuthenticator == expectedAuthenticator) {
                     System.out.println("valid message, playing audioBlock");
 
