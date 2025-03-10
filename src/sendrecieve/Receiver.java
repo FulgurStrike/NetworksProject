@@ -198,10 +198,6 @@ public class Receiver implements Runnable {
                                 lastReceivedSeqNum = sequenceNumber;
                             }
                         }
-                        player.playBlock(audioBlock);
-                        System.out.println("Playing block with audio Number : "+ sequenceNumber);
-
-
                         byte[] decryptedBlock = decryption(symKey, audioBlock);
                     if (packet.getLength() > 0) {
                         player.playBlock(decryptedBlock);
