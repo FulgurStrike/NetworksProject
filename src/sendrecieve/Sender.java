@@ -9,7 +9,6 @@ import java.util.Arrays;
 import java.util.Random;
 import CMPC3M06.AudioRecorder;
 import uk.ac.uea.cmp.voip.DatagramSocket2;
-
 public class Sender implements Runnable {
 
 

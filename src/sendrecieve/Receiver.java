@@ -9,7 +9,6 @@ import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Random;
 import uk.ac.uea.cmp.voip.DatagramSocket2;
-
 public class Receiver implements Runnable {
 
 
@@ -163,8 +162,6 @@ public class Receiver implements Runnable {
                 if (receivedAuthenticator == expectedAuthenticator) {
 
                         if(sequenceNumber == lastReceivedSeqNum + 1) {
-                            player.playBlock(audioBlock);
-                            System.out.println("Playing block with audio Number : " + sequenceNumber);
                             lastReceivedSeqNum = sequenceNumber;  // Update last received sequence number
                         } else {
                             // Packet loss occurred, handle missing packets
@@ -190,8 +187,11 @@ public class Receiver implements Runnable {
 
                                 // If packet is valid and has the correct sequence number, play it
                                 if (receivedAuthenticator == expectedAuthenticator && sequenceNumber == lastReceivedSeqNum + 1) {
-                                    System.out.println("Found and playing missing packet with sequence number: " + sequenceNumber);
-                                    player.playBlock(audioBlock);  // Play audio block
+                                    byte[] decryptedBlock = decryption(symKey, audioBlock);
+                                    if (packet.getLength() > 0) {
+                                        player.playBlock(decryptedBlock);
+                                        System.out.println("received audioblock " + sequenceNumber + " of size of : " + audioBlock.length + " bytes");
+                                    }
                                     lastReceivedSeqNum = sequenceNumber;  // Update last received sequence number
                                     break;  // Exit loop after finding the valid packet
                                 }
@@ -201,7 +201,7 @@ public class Receiver implements Runnable {
                         byte[] decryptedBlock = decryption(symKey, audioBlock);
                     if (packet.getLength() > 0) {
                         player.playBlock(decryptedBlock);
-                        //System.out.println("received audioblock " + sequenceNumber + " of size of : " + audioBlock.length + " bytes");
+                        System.out.println("received audioblock " + sequenceNumber + " of size of : " + audioBlock.length + " bytes");
                     }
                 }else{
                     //System.out.println("Message has been tampered with or isn't valid. Disregarding the packet "+ sequenceNumber + ":"+receivedAuthenticator + ":"+expectedAuthenticator);
