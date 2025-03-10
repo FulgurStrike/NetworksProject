@@ -9,12 +9,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Random;
 import CMPC3M06.AudioRecorder;
- splicing_implementation
 import uk.ac.uea.cmp.voip.DatagramSocket2;
 
 import senderbased.Interleaver;
 
- senderbased
 public class Sender implements Runnable {
 
 
@@ -192,12 +190,10 @@ public class Sender implements Runnable {
                 for (DatagramPacket packet : packets) {
                     try {
                         sendingSocket.send(packet);
- splicing_implementation
                        // System.out.println("audio packet sent, size :" + buffer.capacity() + " bytes");
 
                     } catch (IOException e) {
                         throw new RuntimeException(e);
- senderbased
                     }
                 }
             }
