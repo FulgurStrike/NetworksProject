@@ -4,8 +4,12 @@ import java.io.*;
 import java.math.BigInteger;
 import java.net.*;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Random;
 import CMPC3M06.AudioRecorder;
+
+import javax.xml.crypto.Data;
 
 public class Sender implements Runnable {
     static DatagramSocket sendingSocket;
@@ -75,6 +79,25 @@ public class Sender implements Runnable {
         return K;
     }
 
+    public static ArrayList<ArrayList<DatagramPacket>> rotateMatrix(ArrayList<ArrayList<DatagramPacket>> matrix) {
+        int n = matrix.size();
+        ArrayList<ArrayList<DatagramPacket>> rotated = new ArrayList<>();
+
+        // Initialize rotated matrix with empty ArrayLists
+        for (int i = 0; i < n; i++) {
+            rotated.add(new ArrayList<>(Collections.nCopies(n, null)));
+        }
+
+        // Perform rotation: Move [i][j] → [j][n-1-i]
+        for (int i = 0; i < n; i++) {
+            for (int j = 0; j < n; j++) {
+                rotated.get(j).set(n - 1 - i, matrix.get(i).get(j));
+            }
+        }
+
+        return rotated;
+    }
+
     public byte[] enforceCorrectBlockSize(byte[] block, int size) {
         byte[] paddedBlock = new byte[size];
         System.arraycopy(block, 0, paddedBlock, size - block.length, block.length);
@@ -120,30 +143,52 @@ public class Sender implements Runnable {
 
         int runTime = 10;
 
+        ArrayList<DatagramPacket> packetRow = new ArrayList<>();
+        ArrayList<ArrayList<DatagramPacket>> packetMatrix = new ArrayList<>();
+        int packetMatrixLim = 16;
+        int packetCount = 1;
+
         while (true) {
             for (int i = 0; i < Math.ceil(runTime / 0.032); i++) {
-                try {
-                    byte[] audioBlock = recorder.getBlock();
-                    byte[] encryptedBlock = encryption(symKey, audioBlock);
+                for (int j = 0; j < packetCount; j++) {
+                    try {
+                        byte[] audioBlock = recorder.getBlock();
+                        byte[] encryptedBlock = encryption(symKey, audioBlock);
 
-                    // Allocates a 514 byte long byte buffer
-                    ByteBuffer buffer = ByteBuffer.allocate(518);
-                    if (encryptedBlock != null) {
+                        // Allocates a 514 byte long byte buffer
+                        ByteBuffer buffer = ByteBuffer.allocate(518);
+                        if (encryptedBlock != null) {
 
-                        buffer.putInt(authHeader);
+                            buffer.putInt(authHeader);
 
-                        // First 2 bytes of the packet will be a short representing the sequence number
-                        buffer.putShort((short) i);
+                            // First 2 bytes of the packet will be a short representing the sequence number
+                            buffer.putShort((short) i);
 
-                        // Remaining bits will be the audio block
-                        buffer.put(encryptedBlock);
-                        DatagramPacket packet = new DatagramPacket(buffer.array(), buffer.capacity(), clientIP, port);
-                        sendingSocket.send(packet);
-                        System.out.println("audio packet sent, size :" + buffer.capacity() + " bytes");
+                            // Remaining bits will be the audio block
+                            buffer.put(encryptedBlock);
+                            DatagramPacket packet = new DatagramPacket(buffer.array(), buffer.capacity(), clientIP, port);
+
+                            if (packetRow.size() == 4) {
+                                packetMatrix.add(packetRow);
+                                packetRow = new ArrayList<>();
+                            } else {
+                                packetRow.add(packet);
+                            }
+
+                            if (packetMatrix.size() == 4) {
+                                // packetMatrix = rotateMatrix(packetMatrix);
+                                for(ArrayList<DatagramPacket> row : packetMatrix) {
+                                    for(DatagramPacket p : row) {
+                                        sendingSocket.send(p);
+                                    }
+                                }
+                                packetMatrix = new ArrayList<>();
+                            }
+                        }
+
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
                     }
-                } catch (IOException e) {
-                    System.out.println("Error : TextSender: Some random IO error has occurred");
-                    e.printStackTrace();
                 }
             }
         }

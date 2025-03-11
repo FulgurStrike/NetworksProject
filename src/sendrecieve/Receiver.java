@@ -4,7 +4,8 @@ import java.math.BigInteger;
 import java.net.*;
 import java.io.*;
 import CMPC3M06.AudioPlayer;
-
+import java.util.ArrayList;
+import java.util.Collections;
 import java.nio.ByteBuffer;
 import java.util.Random;
 
@@ -78,6 +79,25 @@ public class Receiver implements Runnable {
         return K;
     }
 
+    public static ArrayList<ArrayList<DatagramPacket>> rotateMatrixBack(ArrayList<ArrayList<DatagramPacket>> matrix) {
+        int n = matrix.size();
+        ArrayList<ArrayList<DatagramPacket>> rotatedBack = new ArrayList<>();
+
+        // Initialize rotated matrix with empty ArrayLists
+        for (int i = 0; i < n; i++) {
+            rotatedBack.add(new ArrayList<>(Collections.nCopies(n, null)));
+        }
+
+        // Perform reverse rotation: Move [j][n-1-i] → [i][j]
+        for (int i = 0; i < n; i++) {
+            for (int j = 0; j < n; j++) {
+                rotatedBack.get(i).set(j, matrix.get(j).get(n - 1 - i));
+            }
+        }
+
+        return rotatedBack;
+    }
+
     public byte[] enforceCorrectBlockSize(byte[] block, int size) {
         byte[] paddedBlock = new byte[size];
         System.arraycopy(block, 0, paddedBlock, size - block.length, block.length);
@@ -114,35 +134,55 @@ public class Receiver implements Runnable {
 
         boolean running = true;
 
+        ArrayList<ArrayList<DatagramPacket>> packetMatrix = new ArrayList<>();
+        ArrayList<DatagramPacket> packetRow = new ArrayList<>();
+        int packetMatrixLim = 16;
+        int packetCount = 1;
+
         while (running){
             try{
                 byte[] buffer = new byte[518];
                 DatagramPacket packet = new DatagramPacket(buffer, 0, buffer.length);
 
-
                 receivingSocket.receive(packet);
 
-                // Wraps the packet into a ByteBuffer for more functionality
-                ByteBuffer byteBuffer = ByteBuffer.wrap(packet.getData());
-
-                int authHeaderPacket = byteBuffer.getInt();
-
-                if (authHeaderPacket != authHeader){
-                    continue;
+                if (packetRow.size() == 4) {
+                    packetMatrix.add(packetRow);
+                    packetRow = new ArrayList<>();
+                } else {
+                    packetRow.add(packet);
                 }
 
-                // Transfers the first 2 bytes in the byte buffer which will be the sequence number
-                short sequenceNumber = byteBuffer.getShort();
+                if (packetMatrix.size() == 4) {
+                    // packetMatrix = rotateMatrixBack(packetMatrix);
+                    for(ArrayList<DatagramPacket> row : packetMatrix){
+                        for(DatagramPacket p : row){
 
-                byte[] audioBlock = new byte[512];
-                // Retrieves the rest of packet bytes which is the entire audio block
-                byteBuffer.get(audioBlock);
+                            // Wraps the packet into a ByteBuffer for more functionality
+                            ByteBuffer byteBuffer = ByteBuffer.wrap(packet.getData());
 
-                byte[] decryptedBlock = decryption(symKey, audioBlock);
+                            int authHeaderPacket = byteBuffer.getInt();
 
-                if (packet.getLength() > 0){
-                    player.playBlock(decryptedBlock);
-                    System.out.println("received audioblock " + sequenceNumber + " of size of : " + audioBlock.length + " bytes");
+                            if (authHeaderPacket != authHeader){
+                                continue;
+                            }
+
+                            // Transfers the first 2 bytes in the byte buffer which will be the sequence number
+                            short sequenceNumber = byteBuffer.getShort();
+
+                            byte[] audioBlock = new byte[512];
+                            // Retrieves the rest of packet bytes which is the entire audio block
+                            byteBuffer.get(audioBlock);
+
+                            byte[] decryptedBlock = decryption(symKey, audioBlock);
+
+                            if (packet.getLength() > 0){
+                                player.playBlock(decryptedBlock);
+                                System.out.println("received audioblock " + sequenceNumber + " of size of : " + audioBlock.length + " bytes");
+                            }
+                        }
+                    }
+                    packetMatrix = new ArrayList<>();
                 }
             } catch(IOException e){
                 System.out.println("ERROR : Receiver : Some random IO error has occurred");
