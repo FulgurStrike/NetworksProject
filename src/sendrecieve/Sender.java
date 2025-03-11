@@ -8,14 +8,14 @@ import java.nio.ByteOrder;
 import java.util.Arrays;
 import java.util.Random;
 import CMPC3M06.AudioRecorder;
-import uk.ac.uea.cmp.voip.DatagramSocket2;
+import uk.ac.uea.cmp.voip.DatagramSocket3;
 public class Sender implements Runnable {
 
 
 
     private static final int MODULUS =65536;
     private static final int S_KEY = 11111;
-    static DatagramSocket2 sendingSocket;
+    static DatagramSocket3 sendingSocket;
     private AudioRecorder recorder;
 
     private final String p = "FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD129024E088A67CC74"
@@ -117,7 +117,7 @@ public class Sender implements Runnable {
 
     public void run() {
         InetAddress clientIP = null;
-        int port = 4421;
+        int port = 8821;
         try {
             //temp localhost
             clientIP =InetAddress.getByName("localhost");
@@ -128,7 +128,7 @@ public class Sender implements Runnable {
         }
 
         try {
-            sendingSocket = new DatagramSocket2();
+            sendingSocket = new DatagramSocket3();
         } catch (SocketException e) {
             System.out.println("ERROR Sender 1: Could not open UDP packet to send from");
             e.printStackTrace();
@@ -164,6 +164,7 @@ public class Sender implements Runnable {
                         buffer.put(encryptedBlock);
 
                         DatagramPacket packet = new DatagramPacket(buffer.array(), buffer.capacity(), clientIP, port);
+                        System.out.println("sending audio packet");
                         sendingSocket.send(packet);
                        // System.out.println("audio packet sent, size :" + buffer.capacity() + " bytes");
                     }

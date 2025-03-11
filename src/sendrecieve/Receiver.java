@@ -8,13 +8,13 @@ import CMPC3M06.AudioPlayer;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Random;
-import uk.ac.uea.cmp.voip.DatagramSocket2;
+import uk.ac.uea.cmp.voip.DatagramSocket4;
 public class Receiver implements Runnable {
 
 
-    private static final int MODULUS =65536;
+    private static final int MODULUS = 65536;
     private static final int S_KEY = 11111;
-    static DatagramSocket2 receivingSocket;
+    static DatagramSocket4 receivingSocket;
     private AudioPlayer player;
 
     private final String p = "FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD129024E088A67CC74"
@@ -38,6 +38,8 @@ public class Receiver implements Runnable {
     private final BigInteger y = new BigInteger(2048, rand);
     private final int authHeader = 768452;
 
+    short lastReceivedSeqNum = -1;
+
     public static long calcAuthenticator(byte[] audioBlock) {
         int checkSum = 0;
         for (byte b : audioBlock) {
@@ -49,9 +51,10 @@ public class Receiver implements Runnable {
     }
 
 
-    public void audioPlayer() throws Exception{
-       player = new AudioPlayer();
+    public void audioPlayer() throws Exception {
+        player = new AudioPlayer();
     }
+
     public void start() {
         Thread thread = new Thread(this);
         thread.start();
@@ -114,11 +117,13 @@ public class Receiver implements Runnable {
         return decryptedBlock.toByteArray();
     }
 
+    byte[] lastReceivedAudioBlock;
+
     public void run() {
-        int port = 4421;
+        int port = 8821;
 
         try {
-            receivingSocket = new DatagramSocket2(port);
+            receivingSocket = new DatagramSocket4(port);
         } catch (SocketException e) {
             System.out.println("ERROR Receiver: Could not open UDP packet to send from");
             e.printStackTrace();
@@ -127,11 +132,10 @@ public class Receiver implements Runnable {
 
         BigInteger symKey = keyExchange();
 
-        short lastReceivedSeqNum = -1;
 
         boolean running = true;
 
-        while (running){
+        while (running) {
             try {
                 byte[] buffer = new byte[526];
                 DatagramPacket packet = new DatagramPacket(buffer, 0, buffer.length);
@@ -147,7 +151,7 @@ public class Receiver implements Runnable {
                 long receiveAuthenticator = byteBuffer.getLong();
                 // Check if the value is negative and correct it (if needed)
                 if (receiveAuthenticator < 0) {
-                    receiveAuthenticator = receiveAuthenticator+ (1L << 64); // Convert to positive unsigned equivalent
+                    receiveAuthenticator = receiveAuthenticator + (1L << 64); // Convert to positive unsigned equivalent
                 }
 
                 byte[] audioBlock = new byte[512];
@@ -161,56 +165,27 @@ public class Receiver implements Runnable {
                 //System.out.println("Received packet with sequence number: " + sequenceNumber);
                 if (receivedAuthenticator == expectedAuthenticator) {
 
-                        if(sequenceNumber == lastReceivedSeqNum + 1) {
-                            lastReceivedSeqNum = sequenceNumber;  // Update last received sequence number
-                        } else {
-                            // Packet loss occurred, handle missing packets
-                            System.out.println("Packet loss occurred. Splicing");
-
-                            // Loop to find the next available packet (if any)
-                            while (sequenceNumber != lastReceivedSeqNum + 1) {
-                                System.out.println("Missing packet with sequence number: " + (lastReceivedSeqNum + 1));
-                                receivingSocket.receive(packet);  // Receive next packet
-
-                                byteBuffer = ByteBuffer.wrap(packet.getData());
-                                byteBuffer.getInt();  // Skip header
-                                sequenceNumber = byteBuffer.getShort();  // Get new sequence number
-                                receiveAuthenticator = byteBuffer.getLong();  // Get new authenticator
-
-                                if (receiveAuthenticator < 0) {
-                                    receiveAuthenticator = receiveAuthenticator + (1L << 64);  // Handle negative authenticator
-                                }
-
-                                byteBuffer.get(audioBlock);  // Get the audio block data
-                                expectedAuthenticator = calcAuthenticator(audioBlock);
-                                receivedAuthenticator = receiveAuthenticator & 0xFFFFFFFFFFFFFFFFL;  // Ensure it's unsigned
-
-                                // If packet is valid and has the correct sequence number, play it
-                                if (receivedAuthenticator == expectedAuthenticator && sequenceNumber == lastReceivedSeqNum + 1) {
-                                    byte[] decryptedBlock = decryption(symKey, audioBlock);
-                                    if (packet.getLength() > 0) {
-                                        player.playBlock(decryptedBlock);
-                                        System.out.println("received audioblock " + sequenceNumber + " of size of : " + audioBlock.length + " bytes");
-                                    }
-                                    lastReceivedSeqNum = sequenceNumber;  // Update last received sequence number
-                                    break;  // Exit loop after finding the valid packet
-                                }
-                                lastReceivedSeqNum = sequenceNumber;
+                    if (sequenceNumber != lastReceivedSeqNum + 1 && lastReceivedAudioBlock != null) {
+                        System.out.println("packet loss occur. Repetition compensation of packet " + lastReceivedSeqNum);
+                        byte[] lastReceivedDecryptedBlock = decryption(symKey, lastReceivedAudioBlock);
+                            player.playBlock(lastReceivedDecryptedBlock);
+                            lastReceivedSeqNum = sequenceNumber;
+                    }else {
+                            byte[] decryptedBlock = decryption(symKey, audioBlock);
+                            if (packet.getLength() > 0) {
+                                player.playBlock(decryptedBlock);
+                                System.out.println("received audioblock " + sequenceNumber + " of size of : " + audioBlock.length + " bytes");
                             }
-                        }
-                        byte[] decryptedBlock = decryption(symKey, audioBlock);
-                    if (packet.getLength() > 0) {
-                        player.playBlock(decryptedBlock);
-                        System.out.println("received audioblock " + sequenceNumber + " of size of : " + audioBlock.length + " bytes");
+                            lastReceivedAudioBlock = audioBlock;
+                        lastReceivedSeqNum = sequenceNumber;
                     }
-                }else{
-                    //System.out.println("Message has been tampered with or isn't valid. Disregarding the packet "+ sequenceNumber + ":"+receivedAuthenticator + ":"+expectedAuthenticator);
                 }
-            } catch(IOException e){
+            } catch (IOException e) {
                 System.out.println("ERROR : Receiver : Some random IO error has occurred");
                 e.printStackTrace();
             }
         }
-        receivingSocket.close();
+            receivingSocket.close();
     }
 }
+
