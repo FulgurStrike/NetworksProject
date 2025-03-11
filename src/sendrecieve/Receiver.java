@@ -115,7 +115,7 @@ public class Receiver implements Runnable {
     }
 
     public void run() {
-        int port = 55555;
+        int port = 4421;
 
         try {
             receivingSocket = new DatagramSocket2(port);

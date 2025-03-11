@@ -117,7 +117,7 @@ public class Sender implements Runnable {
 
     public void run() {
         InetAddress clientIP = null;
-        int port = 55555;
+        int port = 4421;
         try {
             //temp localhost
             clientIP =InetAddress.getByName("localhost");
