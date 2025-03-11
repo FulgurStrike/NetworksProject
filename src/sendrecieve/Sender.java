@@ -12,6 +12,8 @@ import CMPC3M06.AudioRecorder;
 import uk.ac.uea.cmp.voip.DatagramSocket2;
 
 import senderbased.Interleaver;
+import uk.ac.uea.cmp.voip.DatagramSocket3;
+import uk.ac.uea.cmp.voip.DatagramSocket4;
 
 public class Sender implements Runnable {
 
@@ -19,7 +21,7 @@ public class Sender implements Runnable {
 
     private static final int MODULUS =65536;
     private static final int S_KEY = 11111;
-    static DatagramSocket2 sendingSocket;
+    static DatagramSocket sendingSocket;
     private AudioRecorder recorder;
 
     private final String p = "FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD129024E088A67CC74"
@@ -41,7 +43,7 @@ public class Sender implements Runnable {
     private final BigInteger g = BigInteger.valueOf(2);
     private final Random rand = new Random(System.currentTimeMillis());
     private final BigInteger x = new BigInteger(2048, rand);
-    private final int authHeader = 768452;
+    private short counter = 0;
 
     public static long calcAuthenticator(byte[] audioBlock) {
         int checkSum = 0;
@@ -61,6 +63,10 @@ public class Sender implements Runnable {
     public void start() {
         Thread thread = new Thread(this);
         thread.start();
+    }
+
+    private void increment() {
+        this.counter++;
     }
 
     // Key exchange method using TCP sockets. Sender acts as the server
@@ -132,7 +138,7 @@ public class Sender implements Runnable {
         }
 
         try {
-            sendingSocket = new DatagramSocket2();
+            sendingSocket = new DatagramSocket();
         } catch (SocketException e) {
             System.out.println("ERROR Sender 1: Could not open UDP packet to send from");
             e.printStackTrace();
@@ -143,12 +149,12 @@ public class Sender implements Runnable {
         int runTime = 10;
 
         while (true) {
-            int count = 0;
             ArrayList<ArrayList<DatagramPacket>> packetMatrix = new ArrayList<>();
             try {
-                for (int i = 0; i < 3; i++) {
+                for (int i = 0; i < 4; i++) {
                     ArrayList<DatagramPacket> packets = new ArrayList<>();
-                    for (int j = 0; j < 3; j++) {
+                    for (int j = 0; j < 4; j++) {
+                        //System.out.println("Counter : " + this.counter);
                         byte[] audioBlock = recorder.getBlock();
                         byte[] encryptedBlock = encryption(symKey, audioBlock);
                         BigInteger authentication = BigInteger.valueOf(calcAuthenticator(encryptedBlock));
@@ -162,10 +168,9 @@ public class Sender implements Runnable {
                         }
                         // Allocates a 514 byte long byte buffer
                         if (encryptedBlock != null) {
-                            ByteBuffer buffer = ByteBuffer.allocate(526).order(ByteOrder.BIG_ENDIAN);
-                            buffer.putInt(authHeader);
+                            ByteBuffer buffer = ByteBuffer.allocate(522).order(ByteOrder.BIG_ENDIAN);
                             // First 2 bytes of the packet will be a short representing the sequence number
-                            buffer.putShort((short) count);
+                            buffer.putShort((short) this.counter);
                             buffer.put(authBytes);
 
                             // Remaining bits will be the audio block
@@ -173,11 +178,13 @@ public class Sender implements Runnable {
 
                             DatagramPacket packet = new DatagramPacket(buffer.array(), buffer.capacity(), clientIP, port);
                             packets.add(packet);
-                            count++;
+                            increment();
+
                         }
                     }
                     packetMatrix.add(packets);
                 }
+                System.out.println("\n");
 
             } catch (IOException e) {
                 System.out.println("Error : TextSender: Some random IO error has occurred");
@@ -196,6 +203,12 @@ public class Sender implements Runnable {
                         throw new RuntimeException(e);
                     }
                 }
+            }
+
+            try {
+                Thread.sleep(20);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
             }
         }
     }

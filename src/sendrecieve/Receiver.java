@@ -134,59 +134,105 @@ public class Receiver implements Runnable {
 
         boolean running = true;
 
+        short[][] dummyMatrix = {
+                {12, 8, 4, 0},
+                {13, 9, 5, 1},
+                {14, 10, 6, 2},
+                {15, 11, 7, 3},
+        };
+        byte[] prevAudio = null;
+
         while (running){
             try {
-                DatagramPacket packet;
+                DatagramPacket packet = null;
+                boolean prevPacketAdded = true;
+                short seqNum = -1;
                 ArrayList<ArrayList<DatagramPacket>> packetMatrix = new ArrayList<>();
-                for (int i = 0; i < 3; i++) {
+                for (int i = 0; i < 4; i++) {
                     ArrayList<DatagramPacket> packets = new ArrayList<>();
-                    for (int j = 0; j < 3; j++) {
-                        byte[] buffer = new byte[526];
-                        packet = new DatagramPacket(buffer, 0, buffer.length);
+                    for (int j = 0; j < 4; j++) {
+                        if(prevPacketAdded) {
+                            byte[] buffer = new byte[522];
+                            packet = new DatagramPacket(buffer, 0, buffer.length);
+                            receivingSocket.receive(packet);
+                            prevPacketAdded = false;
+                            ByteBuffer bb = ByteBuffer.wrap(buffer);
+                            seqNum = bb.getShort();
+                            System.out.println("Seq Num: " + seqNum);
+                        }
 
-                        receivingSocket.receive(packet);
-                        packets.add(packet);
+                        short dummyMatrixVal = dummyMatrix[i][j];
+                            if ((seqNum % 16) == dummyMatrixVal) {
+                                System.out.println("Mod Seq Num: " + seqNum % 16);
+                                packets.add(packet);
+                                prevPacketAdded = true;
+                            } else {
+                                ByteBuffer emptyByteBuffer = ByteBuffer.allocate(522);
+                                emptyByteBuffer.putShort((short) -2);
+                                emptyByteBuffer.putLong(8);
+                                byte[] emptyByte = new byte[512];
+                                emptyByteBuffer.put(emptyByte);
+                                DatagramPacket emptyPacket = new DatagramPacket(emptyByteBuffer.array(), 0, emptyByteBuffer.array().length);
+                                packets.add(emptyPacket);
+                            }
+
+
                     }
                     packetMatrix.add(packets);
                 }
 
                 packetMatrix = Interleaver.deinterleave(packetMatrix);
 
+
+
                 for (ArrayList<DatagramPacket> packets : packetMatrix) {
                     for (DatagramPacket p : packets) {
                         // Wraps the packet into a ByteBuffer for more functionality
+
                         ByteBuffer byteBuffer = ByteBuffer.wrap(p.getData());
-                        int authHeader = byteBuffer.getInt();
+                        System.out.println(byteBuffer.array().length);
                         short sequenceNumber = byteBuffer.getShort();
+                        System.out.println(byteBuffer.array().length);
+                        System.out.println(sequenceNumber);
                         // Transfers the first 2 bytes in the byte buffer which will be the sequence number
                         long receiveAuthenticator = byteBuffer.getLong();
+                        System.out.println(receiveAuthenticator);
                         // Check if the value is negative and correct it (if needed)
-                        if (receiveAuthenticator < 0) {
-                            receiveAuthenticator = receiveAuthenticator+ (1L << 64); // Convert to positive unsigned equivalent
-                        }
 
-
-                        byte[] audioBlock = new byte[512];
-                        // Retrieves the rest of packet bytes which is the entire audio block
-                        byteBuffer.get(audioBlock);
-
-                        long expectedAuthenticator = calcAuthenticator(audioBlock);
-                        long receivedAuthenticator = receiveAuthenticator & 0xFFFFFFFFFFFFFFFFL; // Make sure it is unsigned
-
-
-                        //System.out.println("Received packet with sequence number: " + sequenceNumber);
-                        if (receivedAuthenticator == expectedAuthenticator) {
-                            System.out.println("valid message, playing audioBlock");
-
-
-                            byte[] decryptedBlock = decryption(symKey, audioBlock);
-
-                            if (p.getLength() > 0) {
-                                player.playBlock(decryptedBlock);
-                                //System.out.println("received audioblock " + sequenceNumber + " of size of : " + audioBlock.length + " bytes");
+                        if (sequenceNumber == -2) {
+                            System.out.println("Empty Packet");
+                            player.playBlock(prevAudio);
+                        } else {
+                            if (receiveAuthenticator < 0) {
+                                receiveAuthenticator = receiveAuthenticator+ (1L << 64); // Convert to positive unsigned equivalent
                             }
-                        }else{
-                            //System.out.println("Message has been tampered with or isn't valid. Disregarding the packet "+ sequenceNumber + ":"+receivedAuthenticator + ":"+expectedAuthenticator);
+
+
+                            byte[] audioBlock = new byte[512];
+
+                            // Retrieves the rest of packet bytes which is the entire audio block
+                            byteBuffer.get(audioBlock);
+
+
+                            long expectedAuthenticator = calcAuthenticator(audioBlock);
+                            long receivedAuthenticator = receiveAuthenticator & 0xFFFFFFFFFFFFFFFFL; // Make sure it is unsigned
+
+
+                            //System.out.println("Received packet with sequence number: " + sequenceNumber);
+                            if (receivedAuthenticator == expectedAuthenticator) {
+                                System.out.println("valid message, playing audioBlock");
+
+
+                                byte[] decryptedBlock = decryption(symKey, audioBlock);
+                                prevAudio = decryptedBlock;
+
+                                if (p.getLength() > 0) {
+                                    player.playBlock(decryptedBlock);
+                                    //System.out.println("received audioblock " + sequenceNumber + " of size of : " + audioBlock.length + " bytes");
+                                }
+                            }else{
+                                //System.out.println("Message has been tampered with or isn't valid. Disregarding the packet "+ sequenceNumber + ":"+receivedAuthenticator + ":"+expectedAuthenticator);
+                            }
                         }
                     }
                 }
