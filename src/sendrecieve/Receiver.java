@@ -42,7 +42,7 @@ public class Receiver implements Runnable {
 
     // buffer to store audio blocks by their sequence number
     private Map<Short, byte[]> audioBuffer = new HashMap<>();
-    private short lastSequenceNo = -1;
+    private int lastSequenceNo = 0;
 
     public static long calcAuthenticator(byte[] audioBlock) {
         int checkSum = 0;
@@ -122,45 +122,48 @@ public class Receiver implements Runnable {
 
     // method to handle packets and receiver-based compensation
     private void handleIncomingPackets(short sequenceNo, byte[] audioBlock, BigInteger symKey) {
-        if (sequenceNo > lastSequenceNo + 1) {
+        byte[] decryptedBlock = decryption(symKey, audioBlock);
+        audioBuffer.put(sequenceNo, decryptedBlock);
+
+        System.out.println("Sequence no: " + sequenceNo + " Last Seq Num: " + this.lastSequenceNo);
+
+        if (sequenceNo > this.lastSequenceNo) {
             // if gap in sequence apply compensation (repetition)
-            for (short i = (short) (lastSequenceNo + 1); i < sequenceNo; i++) {
+            for (int i = this.lastSequenceNo; i < sequenceNo; i++) {
                 System.out.println("Detected Packet Loss, applying compensation for " + i);
                 //compensateForLostPacket(i);
-                spliceMissingPacket(i);
+                //spliceMissingPacket((short) i);
+                lastSequenceNo = sequenceNo + 1;
             }
 
         }
+
         // store received audio block in the buffer
-        audioBuffer.put(sequenceNo, audioBlock);
+
 
         // check if current packet is in sequence
-        if (sequenceNo == lastSequenceNo + 1) {
-            while (audioBuffer.containsKey((short) (lastSequenceNo + 1))) {
-                byte[] blockToPlay = audioBuffer.get((short) (lastSequenceNo + 1));
+        if (sequenceNo == this.lastSequenceNo) {
+            System.out.println("No Packet Loss - Playing");
+            byte[] blockToPlay = audioBuffer.get((this.lastSequenceNo));
 
-                // decrypt the block
-                byte[] decryptedBlock = decryption(symKey, blockToPlay);
-
-                try {
-                    player.playBlock(decryptedBlock);
-                    System.out.println("Received and playing audio block " + (lastSequenceNo + 1));
-                } catch (IOException e) {
-                    System.out.println("Error: Failed to play block for sequence number: " + (lastSequenceNo + 1));
-                    e.printStackTrace();
-                }
-
-                lastSequenceNo++;
-                audioBuffer.remove(lastSequenceNo);
+            try {
+                player.playBlock(blockToPlay);
+                System.out.println("Received and playing audio block " + (this.lastSequenceNo));
+            } catch (IOException e) {
+                System.out.println("Error: Failed to play block for sequence number: " + (this.lastSequenceNo));
+                e.printStackTrace();
             }
+
+                this.lastSequenceNo = sequenceNo;
+                audioBuffer.remove(this.lastSequenceNo);
         }
     }
 
     private void compensateForLostPacket(short missingSequenceNo) {
         try {
             // Check for the last valid audio block
-            if (audioBuffer.containsKey(lastSequenceNo)) {
-                byte[] lastValidBlock = audioBuffer.get(lastSequenceNo);
+            if (audioBuffer.containsKey(this.lastSequenceNo)) {
+                byte[] lastValidBlock = audioBuffer.get(this.lastSequenceNo);
                 // Repetition - play the last valid audio block
                 player.playBlock(lastValidBlock);
                 System.out.println("Repetition: Playing last valid block for lost packet " + missingSequenceNo);
@@ -186,11 +189,11 @@ public class Receiver implements Runnable {
                     byte[] splicedBlock = new byte[512];
 
                     // first half of spliced block
-                    for (int i = 0; i < 256; i++) {
-                        splicedBlock[i] = lastBlock[i + 256];
+                    for (int i = 0; i < 255; i++) {
+                        splicedBlock[i] = lastBlock[i + 255];
                     }
                     // second half of spliced block
-                    for (int i = 256; i < 512; i++) {
+                    for (int i = 256; i <= 511; i++) {
                         splicedBlock[i] = nextBlock[i - 256];
                     }
                     // play spliced block
@@ -232,7 +235,7 @@ public class Receiver implements Runnable {
 
         while (running){
             try {
-                byte[] buffer = new byte[526];
+                byte[] buffer = new byte[522];
                 DatagramPacket packet = new DatagramPacket(buffer, 0, buffer.length);
 
 
@@ -240,7 +243,6 @@ public class Receiver implements Runnable {
 
                 // Wraps the packet into a ByteBuffer for more functionality
                 ByteBuffer byteBuffer = ByteBuffer.wrap(packet.getData());
-                byteBuffer.getInt();
                 short sequenceNumber = byteBuffer.getShort();
                 // Transfers the first 2 bytes in the byte buffer which will be the sequence number
                 long receiveAuthenticator = byteBuffer.getLong();
@@ -260,13 +262,10 @@ public class Receiver implements Runnable {
                 //System.out.println("Received packet with sequence number: " + sequenceNumber);
                 if (receivedAuthenticator == expectedAuthenticator) {
                     // Pass symmetric key to handleIncomingPackets
-                    handleIncomingPackets(sequenceNumber, audioBlock, symKey); // Handle valid packets
 
-                        if(sequenceNumber == lastReceivedSeqNum + 1) {
-                            lastReceivedSeqNum = sequenceNumber;  // Update last received sequence number
-                        } else {
-                            // Packet loss occurred, handle missing packets
-                            System.out.println("Packet loss occurred. Attempting to handle missing packets");
+
+
+                    handleIncomingPackets(sequenceNumber, audioBlock, symKey); // Handle valid packets
 
                             /*
                             // Loop to find the next available packet (if any)
@@ -308,9 +307,6 @@ public class Receiver implements Runnable {
                         System.out.println("received audioblock " + sequenceNumber + " of size of : " + audioBlock.length + " bytes");
                     }
                     */
-                } else {
-                    //System.out.println("Message has been tampered with or isn't valid. Disregarding the packet "+ sequenceNumber + ":"+receivedAuthenticator + ":"+expectedAuthenticator);
-                }
             } catch(IOException e){
                 System.out.println("ERROR : Receiver : Some random IO error has occurred");
                 e.printStackTrace();

@@ -37,7 +37,7 @@ public class Sender implements Runnable {
     private final BigInteger g = BigInteger.valueOf(2);
     private final Random rand = new Random(System.currentTimeMillis());
     private final BigInteger x = new BigInteger(2048, rand);
-    private final int authHeader = 768452;
+    private short seqNumber;
 
     public static long calcAuthenticator(byte[] audioBlock) {
         int checkSum = 0;
@@ -57,6 +57,10 @@ public class Sender implements Runnable {
     public void start() {
         Thread thread = new Thread(this);
         thread.start();
+    }
+
+    private void increment() {
+        this.seqNumber++;
     }
 
     // Key exchange method using TCP sockets. Sender acts as the server
@@ -137,8 +141,10 @@ public class Sender implements Runnable {
 
         BigInteger symKey = keyExchange();
         int runTime = 10;
+        this.seqNumber = 0;
 
         while (true) {
+
             for (int i = 0; i < Math.ceil(runTime / 0.032); i++) {
                 try {
                     byte[] audioBlock = recorder.getBlock();
@@ -154,14 +160,15 @@ public class Sender implements Runnable {
                     }
                     // Allocates a 514 byte long byte buffer
                     if (encryptedBlock != null) {
-                        ByteBuffer buffer = ByteBuffer.allocate(526).order(ByteOrder.BIG_ENDIAN);
-                        buffer.putInt(authHeader);
+                        ByteBuffer buffer = ByteBuffer.allocate(522).order(ByteOrder.BIG_ENDIAN);
                         // First 2 bytes of the packet will be a short representing the sequence number
-                        buffer.putShort((short) i);
+                        buffer.putShort(seqNumber);
                         buffer.put(authBytes);
 
                         // Remaining bits will be the audio block
                         buffer.put(encryptedBlock);
+
+                        increment();
 
                         DatagramPacket packet = new DatagramPacket(buffer.array(), buffer.capacity(), clientIP, port);
                         sendingSocket.send(packet);
