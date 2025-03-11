@@ -138,7 +138,7 @@ public class Sender implements Runnable {
         }
 
         try {
-            sendingSocket = new DatagramSocket();
+            sendingSocket = new DatagramSocket4();
         } catch (SocketException e) {
             System.out.println("ERROR Sender 1: Could not open UDP packet to send from");
             e.printStackTrace();
@@ -174,6 +174,7 @@ public class Sender implements Runnable {
                             buffer.put(authBytes);
 
                             // Remaining bits will be the audio block
+
                             buffer.put(encryptedBlock);
 
                             DatagramPacket packet = new DatagramPacket(buffer.array(), buffer.capacity(), clientIP, port);

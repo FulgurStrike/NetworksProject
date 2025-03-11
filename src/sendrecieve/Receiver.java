@@ -224,10 +224,12 @@ public class Receiver implements Runnable {
 
 
                                 byte[] decryptedBlock = decryption(symKey, audioBlock);
-                                prevAudio = decryptedBlock;
+                                //prevAudio = decryptedBlock;
+                                prevAudio = audioBlock;
 
                                 if (p.getLength() > 0) {
-                                    player.playBlock(decryptedBlock);
+                                    //player.playBlock(decryptedBlock);
+                                    player.playBlock(audioBlock);
                                     //System.out.println("received audioblock " + sequenceNumber + " of size of : " + audioBlock.length + " bytes");
                                 }
                             }else{
